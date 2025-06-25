@@ -30,7 +30,8 @@ class Governor:
             "replace_file_content",
             "write_to_file",
             "view_file_outline",
-            "ls"
+            "ls",
+            "mkdir"
         ],
         "Validator": [
             "uv run pytest"
@@ -43,7 +44,12 @@ class Governor:
         ],
         "Researcher": [
             "search_web",
-            "read_url_content"
+            "read_url_content",
+            "write_to_file",
+            "replace_file_content",
+            "view_file_outline",
+            "cat",
+            "ls"
         ]
     }
 
