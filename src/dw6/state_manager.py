@@ -9,7 +9,7 @@ from dw6 import git_handler
 MASTER_FILE = "docs/WORKFLOW_MASTER.md"
 REQUIREMENTS_FILE = "docs/PROJECT_REQUIREMENTS.md"
 APPROVAL_FILE = "logs/approvals.log"
-STAGES = ["Engineer", "Coder", "Validator", "Deployer", "Researcher"]
+STAGES = ["Engineer", "Coder", "Validator", "Deployer"] # Researcher is a special case, not in the main cycle.
 DELIVERABLE_PATHS = {
     "Engineer": "deliverables/engineering",
     "Coder": "deliverables/coding",
@@ -18,23 +18,67 @@ DELIVERABLE_PATHS = {
     "Researcher": "deliverables/research",
 }
 
+class Governor:
+    def __init__(self, state):
+        self.state = state
+        self.current_stage = self.state.get("CurrentStage")
+
+    def approve(self):
+        old_stage = self.current_stage
+        print(f"--- Governor: Received Approval Request for Stage: {old_stage} ---")
+        self._validate_stage_exit_criteria()
+        # The original logic from WorkflowManager is now fully integrated here.
+        workflow_manager = WorkflowManager() # We still need access to its methods for now.
+        workflow_manager._validate_stage()
+        workflow_manager._run_pre_transition_actions()
+        self._transition_to_next_stage() # This method now belongs to the Governor
+        workflow_manager._run_post_transition_actions()
+        self.state.save()
+        print(f"--- Governor: Stage {old_stage} Approved. New Stage: {self.state.get('CurrentStage')} ---")
+
+    def _validate_stage_exit_criteria(self):
+        print(f"Governor: Validating exit criteria for stage: {self.current_stage}")
+        if self.current_stage == "Engineer":
+            req_id = self.state.get("RequirementPointer")
+            spec_file = Path(f"deliverables/engineering/cycle_{req_id}_technical_specification.md")
+            if not spec_file.exists():
+                print(f"ERROR: Exit criteria for 'Engineer' not met. Specification file not found: {spec_file}", file=sys.stderr)
+                sys.exit(1)
+            print("Governor: 'Engineer' exit criteria met.")
+
+    def _transition_to_next_stage(self):
+        current_index = STAGES.index(self.current_stage)
+        # After 'Deployer', the cycle is complete
+        if self.current_stage == "Deployer":
+            self._complete_requirement_cycle()
+            self.current_stage = STAGES[0]
+        else:
+            self.current_stage = STAGES[current_index + 1]
+        self.state.set("CurrentStage", self.current_stage)
+
+    def _complete_requirement_cycle(self):
+        req_id = int(self.state.get("RequirementPointer"))
+        os.makedirs("logs", exist_ok=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        with open(APPROVAL_FILE, "a") as f:
+            f.write(f"Requirement {req_id} approved at {timestamp}\n")
+        print(f"[INFO] Logged approval for Requirement ID {req_id}.")
+        next_req_id = req_id + 1
+        self.state.set("RequirementPointer", next_req_id)
+        print(f"[INFO] Advanced to next requirement: {next_req_id}.")
+
 class WorkflowManager:
     def __init__(self):
         self.state = WorkflowState()
+        self.governor = Governor(self.state) # The manager now has a governor
         self.current_stage = self.state.get("CurrentStage")
 
     def get_state(self):
         return self.state.data
 
     def approve(self):
-        old_stage = self.current_stage
-        print(f"--- Approving Stage: {old_stage} ---")
-        self._validate_stage()
-        self._run_pre_transition_actions()
-        self._transition_to_next_stage()
-        self._run_post_transition_actions()
-        self.state.save()
-        print(f"--- Stage {old_stage} Approved. New Stage: {self.state.get('CurrentStage')} ---")
+        # The manager now simply delegates to the governor.
+        self.governor.approve()
 
     def _validate_stage(self):
         print(f"Validating deliverables for stage: {self.current_stage}")
@@ -123,25 +167,7 @@ class WorkflowManager:
         if self.current_stage == "Coder":
             git_handler.save_current_commit_sha()
 
-    def _transition_to_next_stage(self):
-        current_index = STAGES.index(self.current_stage)
-        if current_index == len(STAGES) - 1:
-            self._complete_requirement_cycle()
-            self.current_stage = STAGES[0]
-        else:
-            self.current_stage = STAGES[current_index + 1]
-        self.state.set("CurrentStage", self.current_stage)
 
-    def _complete_requirement_cycle(self):
-        req_id = int(self.state.get("RequirementPointer"))
-        os.makedirs("logs", exist_ok=True)
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        with open(APPROVAL_FILE, "a") as f:
-            f.write(f"Requirement {req_id} approved at {timestamp}\n")
-        print(f"[INFO] Logged approval for Requirement ID {req_id}.")
-        next_req_id = req_id + 1
-        self.state.set("RequirementPointer", next_req_id)
-        print(f"[INFO] Advanced to next requirement: {next_req_id}.")
 
 class WorkflowState:
     def __init__(self):

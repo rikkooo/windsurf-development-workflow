@@ -1,7 +1,7 @@
 # dw6/main.py
 import argparse
 import sys
-from dw6.state_manager import StateManager
+from dw6.state_manager import WorkflowManager
 from dw6.augmenter import process_prompt
 
 def main():
@@ -10,9 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description="DW6 Workflow Management CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
 
-    # Review command
-    subparsers.add_parser("review", help="Review the changes for the current stage.")
-    
+
     # Approve command
     subparsers.add_parser("approve", help="Approve the current stage and move to the next.")
 
@@ -26,11 +24,9 @@ def main():
 
     args = parser.parse_args()
     
-    manager = StateManager()
+    manager = WorkflowManager()
 
-    if args.command == "review":
-        manager.review()
-    elif args.command == "approve":
+    if args.command == "approve":
         manager.approve()
     elif args.command == "new":
         process_prompt(args.prompt)

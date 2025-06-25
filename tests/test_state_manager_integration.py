@@ -32,7 +32,8 @@ class TestWorkflowManagerIntegration(unittest.TestCase):
 
     @patch('dw6.state_manager.WorkflowState')
     @patch('dw6.git_handler.get_changes_since_last_commit')
-    def test_approve_coder_stage_creates_deliverable(self, mock_get_changes, mock_WorkflowState):
+    @patch('dw6.git_handler.save_current_commit_sha') # Mock the function causing the error
+    def test_approve_coder_stage_creates_deliverable(self, mock_save_sha, mock_get_changes, mock_WorkflowState):
         """Ensure approving Coder stage generates a deliverable without altering the real state."""
         # Arrange
         mock_state_instance = mock_WorkflowState.return_value
@@ -45,9 +46,12 @@ class TestWorkflowManagerIntegration(unittest.TestCase):
         # Act
         manager.approve()
 
-        # Assert
+        # Assert that the deliverable file was created
         deliverable_path = Path("deliverables/coding/coder_deliverable.md")
         self.assertTrue(deliverable_path.exists())
+        # Clean up the created file
+        deliverable_path.unlink()
+
         mock_state_instance.save.assert_called_once()
 
 if __name__ == '__main__':
