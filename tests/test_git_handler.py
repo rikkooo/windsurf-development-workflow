@@ -31,13 +31,14 @@ class TestGitHandler(unittest.TestCase):
         # Mock the repo and its remote URL
         mock_repo = MagicMock()
         mock_repo.remotes.origin.url = 'https://github.com/user/repo.git'
+        mock_repo.active_branch.name = 'feature-branch'
         mock_get_repo.return_value = mock_repo
         
         with patch('os.getenv', return_value='ghp_fake_token'):
             git_handler.push_to_remote()
         
         expected_url = 'https://ghp_fake_token@github.com/user/repo.git'
-        mock_repo.git.push.assert_called_once_with(expected_url, 'main', '--tags', '--force')
+        mock_repo.git.push.assert_called_once_with(expected_url, 'feature-branch', '--tags', '--force')
 
 if __name__ == '__main__':
     unittest.main()
