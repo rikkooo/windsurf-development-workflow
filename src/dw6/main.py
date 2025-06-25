@@ -5,6 +5,7 @@ from dw6.state_manager import StateManager
 
 def main():
     """Main entry point for the DW6 CLI."""
+    # Test comment for Cycle 2 validation.
     parser = argparse.ArgumentParser(description="DW6 Workflow Management CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
 
