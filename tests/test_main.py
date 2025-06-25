@@ -50,3 +50,50 @@ def test_register_meta_requirement_increments_id():
     assert description1 in lines[0]
     assert "[ID:2]" in lines[1]
     assert description2 in lines[1]
+
+
+@pytest.fixture
+def mock_main_dependencies(mocker):
+    """Fixture to mock dependencies of the main function for the 'do' command tests."""
+    # Since autospec=True is used, we need to configure the mock instance
+    # to have the 'governor' attribute.
+    mock_workflow_manager_class = mocker.patch('dw6.main.WorkflowManager', autospec=True)
+    mock_workflow_manager_instance = mock_workflow_manager_class.return_value
+    mock_governor = mocker.MagicMock()
+    mock_workflow_manager_instance.governor = mock_governor
+
+    mock_subprocess_run = mocker.patch('dw6.main.subprocess.run')
+    return mock_governor, mock_subprocess_run
+
+def test_do_command_executes_authorized_action(mocker, mock_main_dependencies):
+    """Verify the 'do' command executes an action when the Governor authorizes it."""
+    # Arrange
+    mock_governor, mock_subprocess_run = mock_main_dependencies
+    mock_governor.authorize.return_value = None # Simulate authorization success
+    
+    mocker.patch('sys.argv', ['dw6', 'do', 'ls -l'])
+    
+    # Act
+    from dw6.main import main
+    main()
+
+    # Assert
+    mock_governor.authorize.assert_called_once_with('ls -l')
+    mock_subprocess_run.assert_called_once_with('ls -l', shell=True, check=True)
+
+def test_do_command_blocks_denied_action(mocker, mock_main_dependencies):
+    """Verify the 'do' command blocks an action when the Governor denies it."""
+    # Arrange
+    mock_governor, mock_subprocess_run = mock_main_dependencies
+    mock_governor.authorize.side_effect = PermissionError("Action denied")
+
+    mocker.patch('sys.argv', ['dw6', 'do', 'git push'])
+
+    # Act & Assert
+    with pytest.raises(SystemExit) as e:
+        from dw6.main import main
+        main()
+    
+    assert e.value.code == 1
+    mock_governor.authorize.assert_called_once_with('git push')
+    mock_subprocess_run.assert_not_called()

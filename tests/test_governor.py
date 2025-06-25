@@ -71,5 +71,37 @@ def test_governor_enforces_rules_on_approve(mocker, capsys):
 
     # Assert
     captured = capsys.readouterr()
-    expected_rule = Governor.RULES["Coder"]
-    assert expected_rule in captured.out
+    # Check that each rule is printed
+    for rule in Governor.RULES["Coder"]:
+        assert rule in captured.out
+
+@pytest.mark.parametrize("stage, allowed_command", [
+    (stage, command) 
+    for stage, commands in Governor.RULES.items() 
+    for command in commands
+])
+def test_governor_authorizes_allowed_commands(mock_state, stage, allowed_command):
+    """Verify that the Governor authorizes all allowed commands for each stage."""
+    # Arrange
+    mock_state.get.return_value = stage
+    governor = Governor(mock_state)
+    
+    # Act & Assert
+    try:
+        governor.authorize(allowed_command + " --some-arg") # Test with an argument
+    except PermissionError:
+        pytest.fail(f"Governor incorrectly denied command '{allowed_command}' for stage '{stage}'.")
+
+def test_governor_denies_forbidden_command(mock_state):
+    """Verify that the Governor denies a command that is not allowed."""
+    # Arrange
+    stage = "Engineer"
+    forbidden_command = "git commit -m 'should not be allowed'"
+    mock_state.get.return_value = stage
+    governor = Governor(mock_state)
+
+    # Act & Assert
+    with pytest.raises(PermissionError) as e:
+        governor.authorize(forbidden_command)
+    
+    assert "Action denied" in str(e.value)

@@ -20,20 +20,52 @@ DELIVERABLE_PATHS = {
 
 class Governor:
     RULES = {
-        "Engineer": "Can only use tools for analysis, planning, and creating technical specifications.",
-        "Coder": "Can use file system tools, code editing tools, and run tests.",
-        "Validator": "Can only run tests and validation tools.",
-        "Deployer": "Can only use Git tools for tagging and pushing to remote.",
-        "Researcher": "Can use web search and documentation reading tools."
+        "Engineer": [
+            "uv run python -m dw6.main new",
+            "ls",
+            "cat",
+            "view_file_outline"
+        ],
+        "Coder": [
+            "replace_file_content",
+            "write_to_file",
+            "view_file_outline",
+            "ls"
+        ],
+        "Validator": [
+            "uv run pytest"
+        ],
+        "Deployer": [
+            "git add",
+            "git commit",
+            "git tag",
+            "uv run python -m dw6.main approve"
+        ],
+        "Researcher": [
+            "search_web",
+            "read_url_content"
+        ]
     }
+
     def __init__(self, state):
         self.state = state
         self.current_stage = self.state.get("CurrentStage")
 
+    def authorize(self, command: str):
+        """Checks if a command is allowed in the current stage."""
+        allowed_commands = self.RULES.get(self.current_stage, [])
+        if not any(command.startswith(prefix) for prefix in allowed_commands):
+            error_msg = f"[GOVERNOR] Action denied. The command '{(command)}' is not allowed in the '{self.current_stage}' stage."
+            print(error_msg, file=sys.stderr)
+            raise PermissionError(error_msg)
+        print(f"[GOVERNOR] Action authorized for stage '{self.current_stage}'.")
+
     def enforce_rules(self):
-        rule = self.RULES.get(self.current_stage, "No specific rules defined.")
+        rules = self.RULES.get(self.current_stage, ["No specific rules defined."])
         print(f"--- Governor: Enforcing Rules for Stage: {self.current_stage} ---")
-        print(f"[RULE] {rule}")
+        print("[RULE] Allowed command prefixes:")
+        for rule in rules:
+            print(f"  - {rule}")
 
     def approve(self):
         old_stage = self.current_stage

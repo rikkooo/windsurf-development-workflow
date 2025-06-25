@@ -2,6 +2,7 @@
 import argparse
 import sys
 import re
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 from dw6.state_manager import WorkflowManager
@@ -48,6 +49,10 @@ def main():
     meta_req_parser = subparsers.add_parser("meta-req", help="Register a new meta-requirement for the workflow.")
     meta_req_parser.add_argument("description", type=str, help="The description of the meta-requirement.")
 
+    # Do command
+    do_parser = subparsers.add_parser("do", help="Execute a governed action.")
+    do_parser.add_argument("action", type=str, help="The action to execute.")
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -56,6 +61,17 @@ def main():
     
     if args.command == "meta-req":
         register_meta_requirement(args.description)
+    elif args.command == "do":
+        manager = WorkflowManager()
+        try:
+            manager.governor.authorize(args.action)
+            # The command is authorized, execute it.
+            subprocess.run(args.action, shell=True, check=True)
+        except PermissionError:
+            sys.exit(1)
+        except subprocess.CalledProcessError:
+            print(f"ERROR: The action '{args.action}' failed to execute.", file=sys.stderr)
+            sys.exit(1)
     else:
         manager = WorkflowManager()
         if args.command == "approve":
