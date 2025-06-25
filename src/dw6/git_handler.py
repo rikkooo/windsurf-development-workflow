@@ -32,10 +32,14 @@ def _get_authenticated_remote_url(repo):
 
     try:
         remote_url = repo.remotes.origin.url
-        parsed_url = urlparse(remote_url)
-        # The token is injected into the netloc for https authentication
-        authenticated_url = parsed_url._replace(netloc=f"x-access-token:{token}@{parsed_url.netloc}").geturl()
-        return authenticated_url.rstrip('/')
+        if "https://" in remote_url:
+            # Inject token into URL for authentication: https://<token>@github.com/user/repo.git
+            authenticated_url = remote_url.replace("https://", f"https://{token}@")
+            return authenticated_url
+        else:
+            print(f"ERROR: Cannot authenticate with remote URL: {remote_url}", file=sys.stderr)
+            print("Only HTTPS remotes are supported for token authentication.", file=sys.stderr)
+            sys.exit(1)
     except IndexError:
         print("ERROR: 'origin' remote not found. Please add a remote repository.", file=sys.stderr)
         sys.exit(1)
