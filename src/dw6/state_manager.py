@@ -22,6 +22,7 @@ class Governor:
     RULES = {
         "Engineer": [
             "uv run python -m dw6.main new",
+            "uv run python -m dw6.main meta-req",
             "ls",
             "cat",
             "view_file_outline"

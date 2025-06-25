@@ -62,30 +62,36 @@ def register_technical_debt(description, issue_type="test", commit_to_fix=None):
     print(f"Successfully logged technical debt {new_id}.")
     return new_id
 
-def revert_to_previous_stage(manager, target_stage=None):
-    """Reverts to the previous workflow stage or to a specific target stage."""
-    current_stage = manager.state.get("CurrentStage")
+def revert_to_previous_stage(manager, target_stage_name=None):
+    """Reverts the workflow to the previous stage or a specified target stage."""
+    current_stage = manager.get_current_stage()
     current_index = STAGES.index(current_stage)
-    
-    if target_stage:
-        if target_stage not in STAGES:
-            print(f"Error: '{target_stage}' is not a valid stage. Valid stages are: {', '.join(STAGES)}")
-            return
-        target_index = STAGES.index(target_stage)
+
+    if target_stage_name:
+        if target_stage_name not in STAGES:
+            print(f"Error: Invalid target stage '{target_stage_name}'.", file=sys.stderr)
+            sys.exit(1)
+        target_index = STAGES.index(target_stage_name)
     else:
-        # Default to previous stage
-        target_index = max(0, current_index - 1)
-    
+        target_index = current_index - 1
+
+    if current_index == 0:
+        print("Info: Already at the first stage ('Engineer'). Cannot revert further.", file=sys.stdout)
+        sys.exit(0)
+
+    if target_index < 0:
+        print("Error: Cannot revert past the first stage.", file=sys.stderr)
+        sys.exit(1)
+
     target_stage = STAGES[target_index]
-    
+
     if target_index > current_index:
         print(f"Error: Cannot revert forward from {current_stage} to {target_stage}.")
         print(f"Use 'approve' to move forward in the workflow.")
         return
-    
+
     print(f"Reverting from {current_stage} to {target_stage}...")
-    manager.state.set("CurrentStage", target_stage)
-    manager.state.save()
+    manager.set_stage(target_stage)
     print(f"Successfully reverted to {target_stage} stage.")
 
 def main():
