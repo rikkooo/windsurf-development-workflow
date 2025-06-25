@@ -34,7 +34,7 @@ def _get_authenticated_remote_url(repo):
         remote_url = repo.remotes.origin.url
         parsed_url = urlparse(remote_url)
         # The token is injected into the netloc for https authentication
-        authenticated_url = parsed_url._replace(netloc=f"{token}@{parsed_url.netloc}").geturl()
+        authenticated_url = parsed_url._replace(netloc=f"x-access-token:{token}@{parsed_url.netloc}").geturl()
         return authenticated_url
     except IndexError:
         print("ERROR: 'origin' remote not found. Please add a remote repository.", file=sys.stderr)
