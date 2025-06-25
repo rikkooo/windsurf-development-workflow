@@ -9,7 +9,7 @@ from dw6 import git_handler
 MASTER_FILE = "docs/WORKFLOW_MASTER.md"
 REQUIREMENTS_FILE = "docs/PROJECT_REQUIREMENTS.md"
 APPROVAL_FILE = "logs/approvals.log"
-STAGES = ["Engineer", "Coder", "Validator", "Deployer"] # Researcher is a special case, not in the main cycle.
+STAGES = ["Engineer", "Researcher", "Coder", "Validator", "Deployer"]
 DELIVERABLE_PATHS = {
     "Engineer": "deliverables/engineering",
     "Coder": "deliverables/coding",
@@ -90,6 +90,15 @@ class Governor:
                 print(f"ERROR: Exit criteria for 'Engineer' not met. Specification file not found: {spec_file}", file=sys.stderr)
                 sys.exit(1)
             print("Governor: 'Engineer' exit criteria met.")
+        elif self.current_stage == "Researcher":
+            req_id = self.state.get("RequirementPointer")
+            research_dir = Path("deliverables/research")
+            research_dir.mkdir(parents=True, exist_ok=True)
+            report_file = research_dir / f"cycle_{req_id}_research_report.md"
+            if not report_file.exists():
+                print(f"ERROR: Exit criteria for 'Researcher' not met. Research report not found: {report_file}", file=sys.stderr)
+                sys.exit(1)
+            print("Governor: 'Researcher' exit criteria met.")
 
     def _transition_to_next_stage(self):
         current_index = STAGES.index(self.current_stage)
