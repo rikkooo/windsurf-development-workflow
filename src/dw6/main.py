@@ -6,7 +6,8 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 from dw6.state_manager import WorkflowManager, STAGES
-from dw6.augmenter import process_prompt
+from dw6.augmenter import PromptAugmenter
+from dw6.templates import process_prompt
 
 META_LOG_FILE = Path("logs/meta_requirements.log")
 TECH_DEBT_FILE = Path("logs/technical_debt.log")
@@ -148,7 +149,9 @@ def main():
     elif args.command == "approve":
         manager.approve(with_tech_debt=args.with_tech_debt)
     elif args.command == "new":
-        process_prompt(args.prompt)
+        augmenter = PromptAugmenter()
+        augmented_prompt = augmenter.augment_prompt(args.prompt)
+        process_prompt(augmented_prompt)
 
 if __name__ == "__main__":
     main()

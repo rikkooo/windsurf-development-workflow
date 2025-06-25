@@ -6,11 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "dw6"
 version = "0.1.0"
 dependencies = [
-    "python-dotenv",
-    "GitPython",
     "fastapi",
     "uvicorn",
-    "httpx",
+    "python-dotenv",
+    "GitPython",
+    "httpx[socks]",
 ]
 
 [tool.setuptools.packages.find]

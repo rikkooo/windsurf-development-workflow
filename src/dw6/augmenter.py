@@ -1,28 +1,35 @@
 # src/dw6/augmenter.py
 
-import os
-import sys
-from .state_manager import WorkflowState
+import httpx
 
-WORKING_PHILOSOPHY = """**Working Philosophy:** We always look to granularize projects into small, atomic requirements and sub-requirements. The more granular the requirement, the easier it is to scope, implement, test, and validate. This iterative approach minimizes risk and ensures steady, verifiable progress."""
+class PromptAugmenter:
+    """Augments user prompts with context from the MCP server."""
 
-def process_prompt(prompt_text: str):
-    """
-    Augments a raw user prompt and generates a formal technical specification markdown file.
-    """
-    state = WorkflowState()
-    requirement_id = state.get("RequirementPointer")
-    file_path = f"deliverables/engineering/cycle_{requirement_id}_technical_specification.md"
+    def __init__(self, base_url="http://127.0.0.1:8000"):
+        self.base_url = base_url
 
-    content = f"# Requirement: {requirement_id}\n\n"
-    content += f"## 1. High-Level Goal\n\n{prompt_text}\n\n"
-    content += f"## 2. Guiding Principles\n\n{WORKING_PHILOSOPHY}\n"
+    def _get_context(self, endpoint):
+        try:
+            response = httpx.get(f"{self.base_url}{endpoint}")
+            response.raise_for_status()
+            return response.json()
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            return {"error": f"Could not fetch {endpoint}: {e}"}
 
-    try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as f:
-            f.write(content)
-        print(f"Successfully created specification: {file_path}")
-    except IOError as e:
-        print(f"ERROR: Could not write to file {file_path}.\n{e}", file=sys.stderr)
-        sys.exit(1)
+    def augment_prompt(self, original_prompt):
+        """Fetches context and prepends it to the prompt."""
+        state_context = self._get_context("/context/state")
+        git_context = self._get_context("/context/git")
+        req_context = self._get_context("/context/requirements")
+
+        context_str = (
+            f"--- System Context ---\n"
+            f"Workflow State: {state_context.get('CurrentStage', 'Unknown')}\n"
+            f"Git Branch: {git_context.get('branch', 'Unknown')}\n"
+            f"Git Commit: {git_context.get('latest_commit', 'Unknown')}\n"
+            f"Git Status: {git_context.get('status', 'Unknown')}\n"
+            f"Meta-Requirements: {req_context.get('requirements', [])}\n"
+            f"----------------------\n\n"
+        )
+
+        return f"{context_str}User Requirement: {original_prompt}"
