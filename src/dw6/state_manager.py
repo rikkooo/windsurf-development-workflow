@@ -73,27 +73,31 @@ class Governor:
         for rule in rules:
             print(f"  - {rule}")
 
-    def approve(self):
+    def approve(self, with_tech_debt=False):
         old_stage = self.current_stage
         print(f"--- Governor: Received Approval Request for Stage: {old_stage} ---")
         self.enforce_rules()
-        self._validate_stage_exit_criteria()
+        self._validate_stage_exit_criteria(with_tech_debt)
         # The original logic from WorkflowManager is now fully integrated here.
         workflow_manager = WorkflowManager() # We still need access to its methods for now.
-        workflow_manager._validate_stage()
+        workflow_manager._validate_stage(with_tech_debt)
         workflow_manager._run_pre_transition_actions()
         self._transition_to_next_stage() # This method now belongs to the Governor
         workflow_manager._run_post_transition_actions()
         self.state.save()
         print(f"--- Governor: Stage {old_stage} Approved. New Stage: {self.state.get('CurrentStage')} ---")
 
-    def _validate_stage_exit_criteria(self):
+    def _validate_stage_exit_criteria(self, allow_failures=False):
         print(f"Governor: Validating exit criteria for stage: {self.current_stage}")
         if self.current_stage == "Engineer":
             req_id = self.state.get("RequirementPointer")
             spec_file = Path(f"deliverables/engineering/cycle_{req_id}_technical_specification.md")
             if not spec_file.exists():
-                print(f"ERROR: Exit criteria for 'Engineer' not met. Specification file not found: {spec_file}", file=sys.stderr)
+                msg = f"ERROR: Exit criteria for 'Engineer' not met. Specification file not found: {spec_file}"
+                if allow_failures:
+                    print(f"WARNING: {msg}")
+                    return False
+                print(msg, file=sys.stderr)
                 sys.exit(1)
             print("Governor: 'Engineer' exit criteria met.")
         elif self.current_stage == "Researcher":
@@ -140,14 +144,26 @@ class WorkflowManager:
         # The manager now simply delegates to the governor.
         self.governor.approve()
 
-    def _validate_stage(self):
-        print(f"Validating deliverables for stage: {self.current_stage}")
-        if self.current_stage == "Coder":
-            self._generate_coder_deliverable()
-        elif self.current_stage == "Validator":
-            self._validate_tests()
+    def approve_with_tech_debt(self):
+        """Approves a stage despite known technical debt."""
+        if self.current_stage != "Validator":
+            print(f"ERROR: The --with-tech-debt flag can only be used in the Validator stage.")
+            sys.exit(1)
+        
+        self.governor.approve(with_tech_debt=True)
+
+    def _validate_stage(self, allow_failures=False):
+        print("Validating stage requirements...")
+        if self.current_stage == "Validator":
+            if not self._validate_tests(allow_failures):
+                if not allow_failures:
+                    sys.exit(1)
+                print("WARNING: Proceeding despite test failures. Technical debt has been logged.")
         elif self.current_stage == "Deployer":
-            self._validate_deployment()
+            if not self._validate_deployment(allow_failures):
+                if not allow_failures:
+                    sys.exit(1)
+                print("WARNING: Proceeding despite deployment validation failures. Technical debt has been logged.")
         print("Stage validation successful.")
 
     def _generate_coder_deliverable(self):
@@ -169,35 +185,67 @@ class WorkflowManager:
             f.write("\n```")
         print(f"Coder deliverable created at: {deliverable_path}")
 
-    def _validate_tests(self):
+    def _validate_tests(self, allow_failures=False):
+        """Run test validation with optional failure tolerance."""
         print("Running test validation...")
         tests_dir = Path("tests")
         if not tests_dir.is_dir() or not any(tests_dir.glob("test_*.py")):
-            print("ERROR: No test files found in the 'tests' directory.", file=sys.stderr)
+            msg = "ERROR: No test files found in the 'tests' directory."
+            if allow_failures:
+                print(f"WARNING: {msg}")
+                return False
+            print(msg, file=sys.stderr)
             sys.exit(1)
+
         try:
             # Use sys.executable to ensure we're using the python from the current venv
             python_executable = sys.executable
-            collect_result = subprocess.run([python_executable, "-m", "pytest", "--collect-only"], capture_output=True, text=True, check=True)
+            collect_result = subprocess.run([python_executable, "-m", "pytest", "--collect-only"], 
+                                          capture_output=True, text=True, check=True)
+            
             if "no tests collected" in collect_result.stdout.lower():
-                print("ERROR: Pytest collected no tests.", file=sys.stderr)
+                msg = "ERROR: Pytest collected no tests."
+                if allow_failures:
+                    print(f"WARNING: {msg}")
+                    return False
+                print(msg, file=sys.stderr)
                 print(collect_result.stdout, file=sys.stderr)
                 sys.exit(1)
+
             match = re.search(r"collected (\d+) items", collect_result.stdout)
             if not match or int(match.group(1)) == 0:
-                print("ERROR: Pytest collected no tests.", file=sys.stderr)
+                msg = "ERROR: Pytest collected no tests."
+                if allow_failures:
+                    print(f"WARNING: {msg}")
+                    return False
+                print(msg, file=sys.stderr)
                 print(collect_result.stdout, file=sys.stderr)
                 sys.exit(1)
+
             print(f"Pytest collected {match.group(1)} tests. Running them now...")
             result = subprocess.run([python_executable, "-m", "pytest"], capture_output=True, text=True)
+            
             if result.returncode != 0:
-                print("Pytest validation failed:", file=sys.stderr)
+                msg = "Pytest validation failed:"
+                if allow_failures:
+                    print(f"WARNING: {msg}")
+                    print(result.stdout)
+                    print(result.stderr)
+                    return False
+                print(msg, file=sys.stderr)
                 print(result.stdout, file=sys.stderr)
                 print(result.stderr, file=sys.stderr)
                 sys.exit(1)
+
             print("Pytest validation successful.")
+            return True
+
         except (FileNotFoundError, subprocess.CalledProcessError):
-            print("ERROR: pytest command not found or failed to run. Is it installed in your venv?", file=sys.stderr)
+            msg = "ERROR: pytest command not found or failed to run. Is it installed in your venv?"
+            if allow_failures:
+                print(f"WARNING: {msg}")
+                return False
+            print(msg, file=sys.stderr)
             sys.exit(1)
 
     def _validate_deployment(self):
@@ -226,6 +274,15 @@ class WorkflowManager:
     def _run_post_transition_actions(self):
         if self.current_stage == "Coder":
             git_handler.save_current_commit_sha()
+            changed_files, diff = git_handler.get_changes_since_last_commit()
+            deliverable_path = Path(DELIVERABLE_PATHS["Coder"]) / f"{self.current_stage.lower()}_deliverable.md"
+            deliverable_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(deliverable_path, "w") as f:
+                f.write(f"# {self.current_stage} Stage Deliverable\n\n")
+                f.write("## Changed Files\n\n")
+                f.write("\n".join(f"- `{file}`" for file in changed_files))
+                f.write("\n\n## Diff\n\n")
+                f.write(f"```diff\n{diff}\n```")
 
 
 

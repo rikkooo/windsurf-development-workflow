@@ -8,10 +8,16 @@ version = "0.1.0"
 dependencies = [
     "python-dotenv",
     "GitPython",
+    "fastapi",
+    "uvicorn",
+    "httpx",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.scripts]
+dw6 = "dw6.main:main"
 
 [project.optional-dependencies]
 test = [
