@@ -9,13 +9,13 @@ from dw6 import git_handler
 MASTER_FILE = "docs/WORKFLOW_MASTER.md"
 REQUIREMENTS_FILE = "docs/PROJECT_REQUIREMENTS.md"
 APPROVAL_FILE = "logs/approvals.log"
-STAGES = ["Engineer", "Researcher", "Coder", "Validator", "Deployer"]
+STAGES = ["Engineer", "Coder", "Validator", "Deployer", "Researcher"]
 DELIVERABLE_PATHS = {
     "Engineer": "deliverables/engineering",
     "Coder": "deliverables/coding",
-    "Researcher": "deliverables/Researcher",
     "Validator": "deliverables/testing",
     "Deployer": "deliverables/deployment",
+    "Researcher": "deliverables/research",
 }
 
 class WorkflowManager:

@@ -30,6 +30,11 @@ This document tracks issues, flaws, and potential improvements discovered during
     *   **Impact:** Critical. This is a fundamental flaw in the state machine's logic.
     *   **Suggested Fix:** The `_approve_stage` method in `src/dw6/state_manager.py` must be corrected to transition from `Engineer` to `Coder`.
 
+5.  **Issue: No Administrative State Management**
+    *   **Description:** The CLI provides no commands to manually reset or set the workflow state (e.g., `dw6 reset-state`).
+    *   **Impact:** High. There is no easy way to recover from an incorrect state (like the one we are in now) without manually editing the state file, which is risky and non-obvious.
+    *   **Suggested Fix:** Implement administrative commands like `dw6 set-state <stage>` and `dw6 reset` to allow for manual override and recovery.
+
 ---
 
 ## Historical Issues (from `dw6_test_bed_v5`)
