@@ -65,12 +65,8 @@ def main():
         manager = WorkflowManager()
         try:
             manager.governor.authorize(args.action)
-            # The command is authorized, execute it.
-            subprocess.run(args.action, shell=True, check=True)
+            # The command is authorized. The gatekeeper's job is done.
         except PermissionError:
-            sys.exit(1)
-        except subprocess.CalledProcessError:
-            print(f"ERROR: The action '{args.action}' failed to execute.", file=sys.stderr)
             sys.exit(1)
     else:
         manager = WorkflowManager()

@@ -65,8 +65,8 @@ def mock_main_dependencies(mocker):
     mock_subprocess_run = mocker.patch('dw6.main.subprocess.run')
     return mock_governor, mock_subprocess_run
 
-def test_do_command_executes_authorized_action(mocker, mock_main_dependencies):
-    """Verify the 'do' command executes an action when the Governor authorizes it."""
+def test_do_command_authorizes_action(mocker, mock_main_dependencies):
+    """Verify the 'do' command authorizes an action and does not execute it."""
     # Arrange
     mock_governor, mock_subprocess_run = mock_main_dependencies
     mock_governor.authorize.return_value = None # Simulate authorization success
@@ -79,7 +79,7 @@ def test_do_command_executes_authorized_action(mocker, mock_main_dependencies):
 
     # Assert
     mock_governor.authorize.assert_called_once_with('ls -l')
-    mock_subprocess_run.assert_called_once_with('ls -l', shell=True, check=True)
+    mock_subprocess_run.assert_not_called()
 
 def test_do_command_blocks_denied_action(mocker, mock_main_dependencies):
     """Verify the 'do' command blocks an action when the Governor denies it."""
