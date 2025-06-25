@@ -10,6 +10,7 @@ real-time context about the dw6_test_bed_v7 project to an MCP client
 
 import asyncio
 from pathlib import Path
+from dw6 import git_handler
 
 # Placeholder for actual MCP server implementation from an SDK
 # In a real scenario, we would import the necessary components from an MCP library.
@@ -45,15 +46,22 @@ class GitProvider:
     """Provides context from the git repository."""
     def __init__(self):
         self.name = "/git_context"
-        # In a real implementation, this would use the git_handler.py module
+        try:
+            self.repo = git_handler.get_repo()
+        except SystemExit:
+            self.repo = None
 
     def get_context(self):
         """Returns key information from git."""
-        # Placeholder implementation
+        if not self.repo:
+            return {"error": "Git repository not found."}
+            
+        status = "clean" if git_handler.is_working_directory_clean() else "dirty"
+        
         return {
-            "branch": "master",
-            "latest_commit": "d3fe155", # Hardcoded for now
-            "status": "clean"
+            "branch": self.repo.active_branch.name,
+            "latest_commit": git_handler.get_latest_commit_hash(),
+            "status": status
         }
 
 class RequirementsProvider:
