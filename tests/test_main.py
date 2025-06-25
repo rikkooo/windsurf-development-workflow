@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 from dw6.main import register_meta_requirement, META_LOG_FILE
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def cleanup_log_file():
     """Fixture to clean up the meta log file before and after a test."""
     if META_LOG_FILE.exists():
@@ -13,7 +13,7 @@ def cleanup_log_file():
     if META_LOG_FILE.exists():
         META_LOG_FILE.unlink()
 
-def test_register_meta_requirement_creates_file_and_logs_entry():
+def test_register_meta_requirement_creates_file_and_logs_entry(cleanup_log_file):
     """Verify that the first call creates the log file and adds the first entry correctly."""
     # Arrange
     description = "This is the first meta requirement."
@@ -31,7 +31,7 @@ def test_register_meta_requirement_creates_file_and_logs_entry():
     # A simple regex to check for the timestamp format
     assert re.search(r'\[TS:\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\]', content)
 
-def test_register_meta_requirement_increments_id():
+def test_register_meta_requirement_increments_id(cleanup_log_file):
     """Verify that subsequent calls increment the requirement ID."""
     # Arrange
     description1 = "First requirement."
