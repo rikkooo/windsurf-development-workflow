@@ -19,13 +19,26 @@ DELIVERABLE_PATHS = {
 }
 
 class Governor:
+    RULES = {
+        "Engineer": "Can only use tools for analysis, planning, and creating technical specifications.",
+        "Coder": "Can use file system tools, code editing tools, and run tests.",
+        "Validator": "Can only run tests and validation tools.",
+        "Deployer": "Can only use Git tools for tagging and pushing to remote.",
+        "Researcher": "Can use web search and documentation reading tools."
+    }
     def __init__(self, state):
         self.state = state
         self.current_stage = self.state.get("CurrentStage")
 
+    def enforce_rules(self):
+        rule = self.RULES.get(self.current_stage, "No specific rules defined.")
+        print(f"--- Governor: Enforcing Rules for Stage: {self.current_stage} ---")
+        print(f"[RULE] {rule}")
+
     def approve(self):
         old_stage = self.current_stage
         print(f"--- Governor: Received Approval Request for Stage: {old_stage} ---")
+        self.enforce_rules()
         self._validate_stage_exit_criteria()
         # The original logic from WorkflowManager is now fully integrated here.
         workflow_manager = WorkflowManager() # We still need access to its methods for now.

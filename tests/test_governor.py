@@ -53,3 +53,23 @@ def test_governor_allows_engineer_approval_with_spec_file(mock_state):
         # Clean up the created file
         if spec_file.exists():
             spec_file.unlink()
+
+def test_governor_enforces_rules_on_approve(mocker, capsys):
+    """Verify that the Governor prints the correct rule for the current stage."""
+    # Arrange
+    mock_state = mocker.MagicMock(spec=WorkflowState)
+    mock_state.get.side_effect = lambda key: {"CurrentStage": "Coder", "RequirementPointer": "10"}[key]
+    governor = Governor(mock_state)
+    # Mock the exit criteria validation to prevent SystemExit
+    mocker.patch.object(governor, '_validate_stage_exit_criteria')
+    # Mock the rest of the approval process to isolate the rule enforcement
+    mocker.patch.object(governor, '_transition_to_next_stage')
+    mocker.patch('dw6.state_manager.WorkflowManager')
+
+    # Act
+    governor.approve()
+
+    # Assert
+    captured = capsys.readouterr()
+    expected_rule = Governor.RULES["Coder"]
+    assert expected_rule in captured.out
