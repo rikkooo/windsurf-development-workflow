@@ -191,13 +191,13 @@ def initialize_git_repo():
         repo.index.commit("Initial commit: Project setup")
         print("[GIT] Repository initialized and initial commit created.")
 
-def get_latest_commit_hash(branch='main'):
-    """Returns the hash of the latest commit on the specified local branch."""
+def get_latest_commit_hash():
+    """Returns the hash of the latest commit on the current local branch."""
     repo = get_repo()
     try:
-        return repo.heads[branch].commit.hexsha
+        return repo.head.commit.hexsha
     except IndexError:
-        print(f"ERROR: Branch '{branch}' not found.", file=sys.stderr)
+        print(f"ERROR: Could not determine the current branch.", file=sys.stderr)
         sys.exit(1)
 
 def get_remote_tags_with_commits():
@@ -248,15 +248,16 @@ def add_commit_files(message, files):
     except git.GitCommandError as e:
         print(f"ERROR: Failed to create commit for files {files}.\n{e}", file=sys.stderr)
 
-def push_to_remote(branch='main'):
+def push_to_remote():
     """Pushes the specified branch and all tags to the 'origin' remote using token authentication."""
     repo = get_repo()
     if not is_github_token_present():
         sys.exit(1)
     authenticated_url = _get_authenticated_remote_url(repo)
     try:
-        repo.git.push(authenticated_url, branch, '--tags', '--force')
-        print(f"[GIT] Successfully pushed branch '{branch}' and all tags to remote.")
+        active_branch = repo.active_branch.name
+        repo.git.push(authenticated_url, active_branch, '--tags', '--force')
+        print(f"[GIT] Successfully pushed branch '{active_branch}' and all tags to remote.")
     except git.GitCommandError as e:
         print(f"ERROR: Failed to push to remote.\n{e}", file=sys.stderr)
         sys.exit(1)
