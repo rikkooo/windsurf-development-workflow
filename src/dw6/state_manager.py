@@ -160,7 +160,7 @@ class WorkflowManager:
                     sys.exit(1)
                 print("WARNING: Proceeding despite test failures. Technical debt has been logged.")
         elif self.current_stage == "Deployer":
-            if not self._validate_deployment(allow_failures):
+            if not self._validate_deployment():
                 if not allow_failures:
                     sys.exit(1)
                 print("WARNING: Proceeding despite deployment validation failures. Technical debt has been logged.")
