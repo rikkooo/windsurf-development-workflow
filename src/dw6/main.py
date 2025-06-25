@@ -2,6 +2,7 @@
 import argparse
 import sys
 from dw6.state_manager import StateManager
+from dw6.augmenter import process_prompt
 
 def main():
     """Main entry point for the DW6 CLI."""
@@ -15,6 +16,10 @@ def main():
     # Approve command
     subparsers.add_parser("approve", help="Approve the current stage and move to the next.")
 
+    # New command
+    new_parser = subparsers.add_parser("new", help="Create a new requirement specification from a prompt.")
+    new_parser.add_argument("prompt", type=str, help="The high-level user prompt.")
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -27,6 +32,8 @@ def main():
         manager.review()
     elif args.command == "approve":
         manager.approve()
+    elif args.command == "new":
+        process_prompt(args.prompt)
 
 if __name__ == "__main__":
     main()
