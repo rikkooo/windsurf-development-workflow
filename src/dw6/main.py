@@ -64,7 +64,7 @@ def register_technical_debt(description, issue_type="test", commit_to_fix=None):
 
 def revert_to_previous_stage(manager, target_stage_name=None):
     """Reverts the workflow to the previous stage or a specified target stage."""
-    current_stage = manager.get_current_stage()
+    current_stage = manager.current_stage
     current_index = STAGES.index(current_stage)
 
     if target_stage_name:
@@ -91,7 +91,8 @@ def revert_to_previous_stage(manager, target_stage_name=None):
         return
 
     print(f"Reverting from {current_stage} to {target_stage}...")
-    manager.set_stage(target_stage)
+    manager.state.set("CurrentStage", target_stage)
+    manager.state.save()
     print(f"Successfully reverted to {target_stage} stage.")
 
 def main():

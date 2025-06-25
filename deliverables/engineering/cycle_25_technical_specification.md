@@ -2,7 +2,7 @@
 
 ## 1. High-Level Goal
 
-update official dw6 and create a repository windsurf-development-workflow and commit / push all the files to the repo
+Fix DW6: Correct the revert command to use manager.current_stage instead of manager.get_current_stage()
 
 ## 2. Guiding Principles
 

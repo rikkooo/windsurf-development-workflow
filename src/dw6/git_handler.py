@@ -23,7 +23,7 @@ def get_repo():
         sys.exit(1)
 
 def _get_authenticated_remote_url(repo):
-    """Constructs a remote URL with the GITHUB_TOKEN for authentication."""
+    """Constructs a remote URL with the GITHUB_TOKEN for authentication, if not already present."""
     token = os.getenv("GITHUB_TOKEN")
     if not token:
         print("ERROR: GITHUB_TOKEN not found in environment variables or .env file.", file=sys.stderr)
@@ -32,8 +32,14 @@ def _get_authenticated_remote_url(repo):
 
     try:
         remote_url = repo.remotes.origin.url
-        if "https://" in remote_url:
-            # Inject token into URL for authentication: https://<token>@github.com/user/repo.git
+        parsed_url = urlparse(remote_url)
+
+        # Check if the URL already has a username (i.e., a token)
+        if parsed_url.username:
+            return remote_url  # Return the URL as-is if authentication is already present
+
+        if parsed_url.scheme == 'https':
+            # Inject token into URL for authentication
             authenticated_url = remote_url.replace("https://", f"https://{token}@")
             return authenticated_url
         else:
