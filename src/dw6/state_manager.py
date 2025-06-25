@@ -267,6 +267,7 @@ class WorkflowManager:
         print(f"Deployment validation successful: Latest commit is tagged with: {', '.join(matching_tags)}.")
         print("Pushing changes to remote repository...")
         git_handler.push_to_remote()
+        return True
 
     def _run_pre_transition_actions(self):
         pass
