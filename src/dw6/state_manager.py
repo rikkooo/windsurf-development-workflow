@@ -81,7 +81,7 @@ class Governor:
         self._validate_stage_exit_criteria(with_tech_debt)
         # The original logic from WorkflowManager is now fully integrated here.
         workflow_manager = WorkflowManager() # We still need access to its methods for now.
-        workflow_manager._validate_stage(with_tech_debt)
+        workflow_manager._validate_stage(allow_failures=with_tech_debt)
         workflow_manager._run_pre_transition_actions()
         self._transition_to_next_stage() # This method now belongs to the Governor
         workflow_manager._run_post_transition_actions()
@@ -141,9 +141,9 @@ class WorkflowManager:
     def get_state(self):
         return self.state.data
 
-    def approve(self):
+    def approve(self, with_tech_debt=False):
         # The manager now simply delegates to the governor.
-        self.governor.approve()
+        self.governor.approve(with_tech_debt=with_tech_debt)
 
     def approve_with_tech_debt(self):
         """Approves a stage despite known technical debt."""
@@ -156,7 +156,7 @@ class WorkflowManager:
     def _validate_stage(self, allow_failures=False):
         print("Validating stage requirements...")
         if self.current_stage == "Validator":
-            if not self._validate_tests(allow_failures):
+            if not self._validate_tests(allow_failures=allow_failures):
                 if not allow_failures:
                     sys.exit(1)
                 print("WARNING: Proceeding despite test failures. Technical debt has been logged.")
@@ -224,7 +224,12 @@ class WorkflowManager:
                 sys.exit(1)
 
             print(f"Pytest collected {match.group(1)} tests. Running them now...")
-            result = subprocess.run([python_executable, "-m", "pytest"], capture_output=True, text=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest"],
+                capture_output=True,
+                text=True,
+                check=False  # We check the return code manually
+            )
             
             if result.returncode != 0:
                 msg = "Pytest validation failed:"
@@ -232,6 +237,18 @@ class WorkflowManager:
                     print(f"WARNING: {msg}")
                     print(result.stdout)
                     print(result.stderr)
+                    # Log the technical debt
+                    log_path = Path("logs/technical_debt.log")
+                    log_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(log_path, "a") as f:
+                        timestamp = datetime.now(timezone.utc).isoformat()
+                        f.write(f"--- Technical Debt Logged: {timestamp} ---\n")
+                        f.write(f"Stage: {self.current_stage}\n")
+                        f.write(f"Requirement ID: {self.state.get('RequirementPointer')}\n")
+                        f.write("Pytest Output:\n")
+                        f.write(result.stdout)
+                        f.write(result.stderr)
+                        f.write("--- End of Log ---\n\n")
                     return False
                 print(msg, file=sys.stderr)
                 print(result.stdout, file=sys.stderr)

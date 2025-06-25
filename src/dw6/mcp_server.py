@@ -10,7 +10,8 @@ real-time context about the dw6_test_bed_v7 project to an MCP client
 
 import asyncio
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 import uvicorn
 from dw6 import git_handler
 
@@ -89,6 +90,10 @@ requirements_provider = RequirementsProvider()
 @app.get("/", summary="Root endpoint providing server info")
 def read_root():
     return {"message": "DW6 MCP Server is running."}
+
+@app.get("/dashboard", summary="Get the dashboard HTML")
+async def get_dashboard():
+    return FileResponse("src/dw6/dashboard.html")
 
 @app.get("/context/state", summary="Get workflow state")
 def get_state_context():

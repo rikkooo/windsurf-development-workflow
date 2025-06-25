@@ -6,7 +6,8 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 from dw6.state_manager import WorkflowManager, STAGES
-from dw6.augmenter import process_prompt
+from dw6.augmenter import PromptAugmenter
+from dw6.templates import process_prompt
 
 META_LOG_FILE = Path("logs/meta_requirements.log")
 TECH_DEBT_FILE = Path("logs/technical_debt.log")
@@ -101,9 +102,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
 
     # Approve command
-    approve_parser = subparsers.add_parser("approve", help="Approve the current stage and move to the next.")
-    approve_parser.add_argument("--with-tech-debt", action="store_true", 
-                               help="Approve despite known technical debt (only valid in Validator stage)")
+    approve_parser = subparsers.add_parser("approve", help="Approve the current stage and advance to the next.")
+    approve_parser.add_argument("--with-tech-debt", action="store_true", help="Approve the stage even with validation failures, logging them as technical debt.")
 
     # New command
     new_parser = subparsers.add_parser("new", help="Create a new requirement specification from a prompt.")
@@ -147,12 +147,11 @@ def main():
         except PermissionError:
             sys.exit(1)
     elif args.command == "approve":
-        if args.with_tech_debt:
-            manager.approve_with_tech_debt()
-        else:
-            manager.approve()
+        manager.approve(with_tech_debt=args.with_tech_debt)
     elif args.command == "new":
-        process_prompt(args.prompt)
+        augmenter = PromptAugmenter()
+        augmented_prompt = augmenter.augment_prompt(args.prompt)
+        process_prompt(augmented_prompt)
 
 if __name__ == "__main__":
     main()

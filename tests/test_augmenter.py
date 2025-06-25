@@ -1,44 +1,42 @@
 # tests/test_augmenter.py
 
-import os
 import pytest
-from src.dw6.augmenter import process_prompt, WORKING_PHILOSOPHY
-
-# It's good practice to mock dependencies like this to isolate tests.
-@pytest.fixture
-def mock_workflow_state(mocker):
-    """Fixture to mock the WorkflowState and its get method."""
-    # We target 'src.dw6.augmenter.WorkflowState' because that's where it's imported and used.
-    mock_state = mocker.patch('src.dw6.augmenter.WorkflowState', autospec=True)
-    mock_instance = mock_state.return_value
-    mock_instance.get.return_value = '999' # Use a consistent mock requirement ID
-    return mock_instance
+import httpx
+from unittest.mock import MagicMock
+from src.dw6.augmenter import PromptAugmenter
 
 @pytest.fixture
-def cleanup_spec_file():
-    """Fixture to clean up the generated spec file after the test runs."""
-    yield
-    # Use the same mock requirement ID for cleanup to ensure we delete the correct file.
-    file_path = f"deliverables/engineering/cycle_999_technical_specification.md"
-    if os.path.exists(file_path):
-        os.remove(file_path)
+def mock_httpx_get(mocker):
+    """Fixture to mock httpx.get calls."""
+    mock = mocker.patch('httpx.get')
+    
+    def get_side_effect(url):
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        if "/context/state" in url:
+            mock_response.json.return_value = {"CurrentStage": "Coder"}
+        elif "/context/git" in url:
+            mock_response.json.return_value = {"branch": "feature-branch", "latest_commit": "abc1234", "status": "clean"}
+        elif "/context/requirements" in url:
+            mock_response.json.return_value = {"requirements": ["req1", "req2"]}
+        else:
+            mock_response.json.return_value = {"error": "Not Found"}
+        return mock_response
 
-def test_process_prompt_creates_file_with_correct_content(mock_workflow_state, cleanup_spec_file):
-    """Tests that process_prompt creates the spec file with the correct content."""
-    # Arrange
-    test_prompt = "This is a test prompt for the augmenter."
-    requirement_id = '999' # Use the same mock ID as the fixture
-    expected_file_path = f"deliverables/engineering/cycle_{requirement_id}_technical_specification.md"
+    mock.side_effect = get_side_effect
+    return mock
 
-    # Act
-    process_prompt(test_prompt)
+def test_augment_prompt(mock_httpx_get):
+    """Tests that the prompt is correctly augmented with context."""
+    augmenter = PromptAugmenter()
+    original_prompt = "Implement a new login feature."
 
-    # Assert
-    assert os.path.exists(expected_file_path), "Specification file was not created."
+    augmented_prompt = augmenter.augment_prompt(original_prompt)
 
-    with open(expected_file_path, 'r') as f:
-        content = f.read()
-
-    assert f"# Requirement: {requirement_id}" in content
-    assert f"## 1. High-Level Goal\n\n{test_prompt}" in content
-    assert f"## 2. Guiding Principles\n\n{WORKING_PHILOSOPHY}" in content
+    assert "--- System Context ---" in augmented_prompt
+    assert "Workflow State: Coder" in augmented_prompt
+    assert "Git Branch: feature-branch" in augmented_prompt
+    assert "Git Commit: abc1234" in augmented_prompt
+    assert "Git Status: clean" in augmented_prompt
+    assert "Meta-Requirements: [\'req1\', \'req2\']" in augmented_prompt
+    assert f"User Requirement: {original_prompt}" in augmented_prompt
